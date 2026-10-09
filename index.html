@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mars Expansion</title>
+<style>
+:root{
+  --bg:#060910; --panel:#0e1421; --panel2:#141c2c; --panel3:#1a2438; --line:#25314a;
+  --text:#dbe3f1; --dim:#8a97b0; --faint:#5b6782;
+  --accent:#ff7a45; --mars:#e0603a; --earth:#4aa3ff; --moon:#c3c8d2;
+  --good:#46d38a; --warn:#ffc04d; --bad:#ff5a5a; --gold:#ffd166; --cyan:#5fd7e8;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--text);font:13px/1.4 "Segoe UI",system-ui,sans-serif;overflow:hidden}
+button{font:inherit;color:var(--text);background:var(--panel3);border:1px solid var(--line);border-radius:6px;padding:5px 10px;cursor:pointer}
+button:hover:not(:disabled){border-color:var(--accent);background:#22304a}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.primary{background:#b8461d;border-color:#e0602e;color:#fff;font-weight:600}
+button.primary:hover:not(:disabled){background:#d4561f}
+button.small{padding:2px 7px;font-size:12px}
+input[type=number]{width:72px;background:#0a0f1a;color:var(--text);border:1px solid var(--line);border-radius:5px;padding:3px 5px;font:inherit}
+input[type=number]:focus{outline:1px solid var(--accent)}
+kbd{display:inline-block;min-width:16px;padding:0 4px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;font-size:11px;color:var(--dim);text-align:center;background:#0a0f1a}
+.dim{color:var(--dim)} .faint{color:var(--faint)} .good{color:var(--good)} .warn{color:var(--warn)} .bad{color:var(--bad)} .gold{color:var(--gold)}
+#app{display:grid;grid-template-rows:50px 1fr;height:100vh}
+#top{display:flex;align-items:center;gap:18px;padding:0 14px;background:linear-gradient(#121a2b,#0b111d);border-bottom:1px solid var(--line)}
+#top .logo{font-weight:800;letter-spacing:2px;font-size:17px;color:var(--accent)}
+#top .logo span{color:var(--text)}
+#top .stat{display:flex;flex-direction:column;line-height:1.1}
+#top .stat b{font-size:15px}
+#top .stat small{color:var(--dim);font-size:11px}
+#top .spacer{flex:1}
+#main{display:grid;grid-template-columns:350px minmax(0,1fr) 470px;gap:8px;padding:8px;min-height:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;min-height:0}
+#left{display:flex;flex-direction:column;gap:8px;min-height:0}
+#nodes{flex:1;overflow:auto;padding:6px;display:flex;flex-direction:column;gap:5px}
+.node{border:1px solid var(--line);background:var(--panel2);border-radius:7px;padding:6px 9px;cursor:pointer;position:relative}
+.node:hover{border-color:#3b4b6c}
+.node.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.node .nh{display:flex;justify-content:space-between;align-items:baseline}
+.node .nh b{font-size:13px}
+.node .nh .k{color:var(--faint);font-size:11px}
+.node .res{display:grid;grid-template-columns:repeat(3,1fr);gap:0 8px;font-size:12px;color:var(--dim);margin-top:2px}
+.node .res span b{color:var(--text);font-weight:600}
+.node .sub{font-size:11px;color:var(--faint);margin-top:2px}
+.link{font-size:11px;color:var(--faint);text-align:center;margin:-2px 0;user-select:none}
+.link.ip{color:var(--warn)}
+#tut{padding:10px 12px;max-height:260px;overflow:auto}
+#tut h3{margin:0 0 4px;font-size:12px;letter-spacing:1px;color:var(--accent);display:flex;justify-content:space-between}
+#tut p{margin:4px 0}
+#center{display:grid;grid-template-rows:minmax(0,1fr) auto 128px;gap:8px;min-height:0}
+#mapwrap{position:relative;overflow:hidden}
+#map{position:absolute;inset:0;width:100%;height:100%}
+#mapinfo{position:absolute;right:10px;top:10px;text-align:right;pointer-events:none}
+#winbadge{display:inline-block;padding:6px 12px;border-radius:6px;font-weight:700;font-size:14px;border:1px solid}
+#forecast{padding:8px 10px}
+#forecast .fh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px}
+#forecast .fh b{font-size:12px;letter-spacing:1px}
+.frow{display:grid;grid-template-columns:110px repeat(36,1fr);gap:2px;align-items:center;margin-top:2px}
+.frow .lbl{font-size:11px;color:var(--dim)}
+.cell{height:20px;border-radius:2px;position:relative;cursor:default}
+.cell.now{outline:2px solid #fff;outline-offset:-1px}
+.mlab{font-size:9px;color:var(--faint);text-align:center;height:12px;overflow:hidden}
+.legend{display:flex;gap:12px;font-size:11px;color:var(--dim)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+#log{overflow:auto;padding:6px 10px;font-size:12px}
+#log div{padding:1px 0;border-bottom:1px solid #141b29}
+#log .t{color:var(--faint);margin-right:6px}
+#right{display:flex;flex-direction:column;min-height:0}
+#tabs{display:flex;border-bottom:1px solid var(--line)}
+#tabs button{flex:1;border:none;border-radius:0;background:transparent;padding:9px 4px;color:var(--dim);border-bottom:2px solid transparent}
+#tabs button.on{color:var(--text);border-bottom-color:var(--accent);background:var(--panel2)}
+#tabs button:hover{background:var(--panel2)}
+#tabbody{flex:1;overflow:auto;padding:10px 12px}
+h2{margin:0 0 6px;font-size:16px}
+h4{margin:12px 0 5px;font-size:12px;letter-spacing:1px;color:var(--dim);text-transform:uppercase}
+.row{display:flex;align-items:center;gap:8px}
+.between{display:flex;justify-content:space-between;align-items:center;gap:8px}
+table{border-collapse:collapse;width:100%}
+td,th{padding:3px 4px;text-align:left;border-bottom:1px solid #1a2233;font-size:12px}
+th{color:var(--dim);font-weight:500}
+td.n,th.n{text-align:right}
+.card{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:8px 10px;margin-bottom:7px}
+.bcard{display:grid;grid-template-columns:1fr auto;gap:2px 8px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:7px 9px;margin-bottom:6px}
+.bcard .bd{font-size:11px;color:var(--dim);grid-column:1}
+.bcard .bn{font-weight:600}
+.bcard .cnt{color:var(--cyan);font-weight:700;margin-left:6px}
+.bar{height:8px;background:#0a0f1a;border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;background:var(--accent)}
+.pill{display:inline-block;padding:0 6px;border-radius:9px;font-size:11px;border:1px solid var(--line);color:var(--dim)}
+.pill.g{color:var(--good);border-color:#2d6e4c}.pill.w{color:var(--warn);border-color:#7a5b20}.pill.b{color:var(--bad);border-color:#7a2a2a}
+.phases{display:flex;gap:2px;margin:6px 0 2px}
+.phases div{flex:1;text-align:center;font-size:10px;padding:3px 1px;border-radius:3px;background:#0a0f1a;color:var(--faint);border:1px solid #1b2436;white-space:nowrap;overflow:hidden}
+.phases div.done{background:#173226;color:#8fe0b4;border-color:#235a3e}
+.phases div.cur{background:#4a2a14;color:#ffd0b0;border-color:var(--accent);font-weight:700}
+.ms{display:flex;gap:8px;align-items:flex-start;padding:5px 6px;border-radius:6px;margin-bottom:3px;border:1px solid transparent}
+.ms .ic{width:20px;height:20px;border-radius:50%;border:2px solid var(--faint);flex:none;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:12px}
+.ms.got{background:#1d1a0d;border-color:#5a4a16}
+.ms.got .ic{border-color:var(--gold);background:var(--gold);color:#1d1a0d;font-weight:900}
+.ms .mt{font-weight:600}.ms .md{font-size:11px;color:var(--dim)}
+.cond{display:flex;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid #1a2233}
+.cond .ck{width:18px;height:18px;border-radius:4px;border:2px solid var(--faint);flex:none;text-align:center;line-height:14px;font-weight:900;font-size:12px}
+.cond.ok .ck{border-color:var(--good);background:var(--good);color:#0b1a12}
+#modalWrap{position:fixed;inset:0;background:rgba(3,5,10,.72);display:none;align-items:center;justify-content:center;z-index:50}
+#modalWrap.show{display:flex}
+.mbox{background:var(--panel);border:1px solid #33425f;border-radius:10px;padding:18px 20px;width:620px;max-height:90vh;overflow:auto;box-shadow:0 20px 60px #000}
+.mbox.wide{width:820px}
+.mbox h2{font-size:19px;margin-bottom:10px}
+.mbox .foot{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cargo td{padding:4px}
+.note{background:#0a0f1a;border:1px solid var(--line);border-left:3px solid var(--accent);padding:7px 10px;border-radius:5px;margin:8px 0;font-size:12px}
+.note.ok{border-left-color:var(--good)}.note.bad{border-left-color:var(--bad)}.note.w{border-left-color:var(--warn)}
+#toasts{position:fixed;bottom:330px;left:50%;transform:translateX(-50%);z-index:60;display:flex;flex-direction:column;gap:6px;align-items:center;pointer-events:none}
+.toast{background:#141c2c;border:1px solid var(--line);padding:8px 16px;border-radius:7px;box-shadow:0 6px 20px #000;animation:tin .25s ease-out;max-width:640px;text-align:center}
+.toast.mstone{border-color:var(--gold);background:linear-gradient(#2b2410,#17140a);padding:10px 22px}
+.toast.mstone b{color:var(--gold);font-size:15px;letter-spacing:1px}
+.toast.bad{border-color:var(--bad)}
+.toast.out{opacity:0;transition:opacity .5s}
+@keyframes tin{from{transform:translateY(-10px);opacity:0}to{transform:none;opacity:1}}
+#title{position:fixed;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 70% 60%,#3a160b 0%,#0b0e18 45%,#04060b 100%)}
+#title .tb{width:640px;text-align:center}
+#title h1{font-size:64px;letter-spacing:10px;margin:0;color:#ff8a55;text-shadow:0 0 30px #a2381366}
+#title h1 span{color:#e8eef9}
+#title p{color:var(--dim);font-size:15px}
+#title .btns{display:flex;flex-direction:column;gap:10px;width:260px;margin:26px auto}
+#title .btns button{padding:10px;font-size:15px}
+.flow{font-size:11px;margin-left:4px}
+.dl{display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:12px}
+.dl dt{color:var(--dim)}.dl dd{margin:0}
+::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-thumb{background:#273249;border-radius:5px}::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="top">
+    <div class="logo">MARS <span>EXPANSION</span></div>
+    <div class="stat"><b id="tDate">-</b><small id="tTurn">Month 0</small></div>
+    <div class="stat"><b id="tMoney">-</b><small id="tIncome">-</small></div>
+    <div class="stat"><b id="tPhase">-</b><small>Earth-Mars phase angle</small></div>
+    <div class="stat"><b id="tIndep">-</b><small>Independence</small></div>
+    <div class="spacer"></div>
+    <button id="bHelp" title="How to play (H)">Help <kbd>H</kbd></button>
+    <button id="bSkip" title="Advance month by month until something happens (N)">Skip to next event <kbd>N</kbd></button>
+    <button id="bEnd" class="primary" title="Advance one month (Space)">End Month <kbd>Space</kbd></button>
+  </div>
+  <div id="main">
+    <div id="left">
+      <div class="panel" id="nodes"></div>
+      <div class="panel" id="tut"></div>
+    </div>
+    <div id="center">
+      <div class="panel" id="mapwrap"><canvas id="map"></canvas><div id="mapinfo"></div></div>
+      <div class="panel" id="forecast"></div>
+      <div class="panel" id="log"></div>
+    </div>
+    <div class="panel" id="right">
+      <div id="tabs">
+        <button data-tab="loc">Location</button>
+        <button data-tab="fleet">Fleet <kbd>F</kbd></button>
+        <button data-tab="logi">Logistics <kbd>T</kbd></button>
+        <button data-tab="tech">Research <kbd>R</kbd></button>
+        <button data-tab="goals">Goals <kbd>G</kbd></button>
+      </div>
+      <div id="tabbody"></div>
+    </div>
+  </div>
+</div>
+<div id="modalWrap"><div id="modal"></div></div>
+<div id="toasts"></div>
+<div id="title">
+  <div class="tb">
+    <h1>MARS <span>EXPANSION</span></h1>
+    <p>Run the supply chain from Earth to the Red Planet.<br>Robots first. Humans next. Independence last.</p>
+    <div class="btns">
+      <button class="primary" id="bNew">New Game</button>
+      <button id="bCont">Continue</button>
+      <button id="bHow">How to Play</button>
+    </div>
+    <p class="faint" style="font-size:12px">Mouse + keyboard. Turn-based: one turn = one month. Typical game: 20-60 minutes.</p>
+  </div>
+</div>
+<script>
+"use strict";
+/* ================== CONSTANTS ================== */
+const MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const START_YEAR=2031;
+const W_E=360/12, W_M=360/22.57;           // deg per month
+const R_E=1.0, R_M=1.524;                  // AU
+const THETA_M0=44.4+(W_E-W_M)*7;            // first Hohmann window ~ month 7
+const SAVE_KEY='marsExpansion_save_v1';
+const SHIP_CARGO=120, SHIP_TANK=300;
+const TRAJ={
+  hohmann:{name:'Hohmann transfer',desc:'Minimum-energy half ellipse. Cheapest, slowest.',T:8.5,out:90,back:50},
+  fast:{name:'Fast transfer',desc:'Steeper path. About 2x fuel, ~6 months. Its ideal phase angle is different.',T:6,out:180,back:100}
+};
+const LOCS=['earth','leo','llo','moon','mo','mars'];
+const LNAME={earth:'Earth',leo:'Low Earth Orbit',llo:'Lunar Orbit',moon:'Moon',mo:'Mars Orbit',mars:'Mars'};
+const LSHORT={earth:'Earth',leo:'LEO',llo:'LLO',moon:'Moon',mo:'Mars Orbit',mars:'Mars'};
+const RES=['fuel','parts','supplies','water','robots','colonists'];
+const RNAME={fuel:'Fuel',parts:'Parts',supplies:'Supplies',water:'Water',robots:'Robots',colonists:'Colonists'};
+const RUNIT={fuel:'t',parts:'t',supplies:'t',water:'t',robots:'',colonists:''};
+const INTRES={robots:1,colonists:1};
+const EARTH_PRICE={fuel:0.3,parts:1.5,supplies:0.8,robots:15,colonists:3}; // $M per unit before launch
+const GRAPH={leo:['llo'],llo:['leo','moon'],moon:['llo'],mo:['mars'],mars:['mo']};
+const HOPNAME={
+  'leo>llo':['Trans-Lunar Injection','Lunar Orbit Insertion'],
+  'llo>leo':['Trans-Earth burn','Aerobraking into LEO'],
+  'llo>moon':['Deorbit burn','Lunar Landing'],
+  'moon>llo':['Lunar Ascent','Orbit rendezvous'],
+  'mo>mars':['Deorbit burn','Entry, Descent & Landing'],
+  'mars>mo':['Mars Ascent','Orbit rendezvous']
+};
+const BLD={
+  moon:{
+    lsolar:{name:'Lunar Solar Farm',cost:15,time:1,power:10,solar:1,desc:'+10 power'},
+    refinery:{name:'Ice Refinery',cost:30,time:2,labor:2,power:-6,out:{fuel:12},desc:'Polar ice to propellant: +12 t fuel/mo'},
+    fabricator:{name:'Regolith Fabricator',cost:40,time:2,labor:2,power:-8,out:{parts:4},desc:'Sintered regolith: +4 t parts/mo'},
+    massdriver:{name:'Mass Driver',cost:60,time:3,labor:1,power:-10,desc:'Electromagnetic launcher: Moon to Lunar Orbit costs no fuel'}
+  },
+  llo:{
+    gateway:{name:'Gateway Station',cost:40,time:2,desc:'Fuel depot: halves LEO <-> Lunar Orbit fuel cost'}
+  },
+  mo:{
+    station:{name:'Orbital Station',cost:60,time:3,power:4,solar:1,housing:10,desc:'Hub in Mars orbit. Houses 10. Required for Shipyard'},
+    shipyard:{name:'Martian Shipyard',cost:120,time:4,labor:4,power:-4,req:'station',desc:'Builds freighters from Mars-made parts'}
+  },
+  mars:{
+    solar:{name:'Solar Array',cost:15,time:1,power:6,solar:1,desc:'+6 power (dust storms cut output)'},
+    reactor:{name:'Fission Reactor',cost:50,time:2,labor:1,power:25,desc:'+25 power, storm-proof'},
+    icemine:{name:'Ice Mine',cost:25,time:1,labor:2,power:-4,out:{water:6},desc:'+6 t water/mo'},
+    sabatier:{name:'Sabatier Plant',cost:30,time:2,labor:2,power:-8,inW:3,out:{fuel:10},desc:'CO2 + water: -3 water, +10 t fuel/mo'},
+    greenhouse:{name:'Greenhouse',cost:30,time:2,labor:2,power:-5,inW:2,out:{supplies:3},desc:'-2 water, +3 t supplies/mo'},
+    foundry:{name:'Foundry',cost:50,time:2,labor:3,power:-10,out:{parts:5},desc:'Martian iron to parts: +5 t parts/mo'},
+    robofac:{name:'Robot Factory',cost:60,time:3,labor:2,power:-8,desc:'-3 t parts, +0.5 robots/mo'},
+    habitat:{name:'Habitat',cost:40,time:2,power:-2,housing:10,desc:'Houses 10 colonists'}
+  }
+};
+const TECH={
+  reuse:{name:'Reusable Boosters',cost:800,desc:'Earth-to-LEO launch cost $1.2M/t -> $0.6M/t.'},
+  ntr:{name:'Nuclear Thermal Rockets',cost:1500,desc:'Interplanetary transfer fuel x0.65.'},
+  loop:{name:'Closed-Loop Life Support',cost:600,desc:'Colonists use 40% fewer supplies.'},
+  mk2:{name:'Robots Mk II',cost:1000,desc:'Each robot counts as 1.5 workers.'},
+  film:{name:'Thin-Film Solar',cost:500,desc:'All solar output +50%.'},
+  skyhook:{name:'Skyhook Tether',cost:1200,desc:'Mars surface to orbit fuel 0.40 -> 0.15 t per t.'}
+};
+const MILESTONES=[
+  {id:'leo',name:'Liftoff',desc:'First cargo reaches Low Earth Orbit.',bonus:100,inc:0},
+  {id:'tli',name:'Lunar Orbit Insertion',desc:'First cargo captured into Lunar Orbit.',bonus:100,inc:0},
+  {id:'moonland',name:'Lunar Landing',desc:'First cargo lands on the Moon.',bonus:150,inc:10},
+  {id:'moon',name:'Lunar Foothold',desc:'First building completed on the Moon.',bonus:200,inc:20},
+  {id:'tmi',name:'Escape Velocity',desc:'First Trans-Mars Injection burn.',bonus:150,inc:0},
+  {id:'window',name:'Window Navigator',desc:'Launch to Mars with fuel cost at most 1.25x.',bonus:200,inc:0},
+  {id:'mcc',name:'Course Correction',desc:'First mid-course correction burn in deep space.',bonus:100,inc:0},
+  {id:'moi',name:'Mars Orbit Insertion',desc:'First ship aerocaptured into Mars orbit.',bonus:300,inc:20},
+  {id:'edl',name:'Touchdown',desc:'First Entry, Descent & Landing on Mars.',bonus:200,inc:10},
+  {id:'power',name:'Lights On',desc:'First power plant on Mars.',bonus:150,inc:0},
+  {id:'fuel',name:'Martian Propellant',desc:'Sabatier Plant on Mars produces fuel.',bonus:200,inc:20},
+  {id:'parts',name:'Red Foundry',desc:'Foundry on Mars produces parts.',bonus:200,inc:20},
+  {id:'robot',name:'Self-Replication',desc:'Robot Factory on Mars builds its first robot.',bonus:250,inc:20},
+  {id:'station',name:'Orbital Foothold',desc:'Orbital Station completed in Mars orbit.',bonus:200,inc:10},
+  {id:'hab',name:'Ready for Humans',desc:'First Habitat on Mars. Colonists unlocked on Earth.',bonus:300,inc:20},
+  {id:'humans',name:'First Footprints',desc:'First colonists land on Mars.',bonus:500,inc:50},
+  {id:'tei',name:'Homeward Bound',desc:'First Trans-Earth Injection burn from Mars orbit.',bonus:150,inc:0},
+  {id:'return',name:'Round Trip',desc:'A ship returns from Mars to LEO.',bonus:250,inc:10},
+  {id:'yard',name:'Made on Mars',desc:'First freighter built at the Martian Shipyard.',bonus:300,inc:20},
+  {id:'pop30',name:'Growing Colony',desc:'30 colonists live on Mars.',bonus:400,inc:30},
+  {id:'indep',name:'Independence',desc:'Mars sustains itself for 12 months. You win.',bonus:0,inc:0}
+];
+const SHIPNAMES=['Ares','Hermes','Bradbury','Tharsis','Olympus','Elysium','Valles','Hellas','Sagan','Musk','Zubrin','Utopia','Jezero','Gale','Arcadia','Chryse'];
+const ROMAN=['I','II','III','IV','V','VI','VII','VIII'];
+
+/* ================== STATE ================== */
+let S=null;
+const z=()=>({fuel:0,parts:0,supplies:0,water:0,robots:0,colonists:0});
+function newState(){
+  return {
+    turn:0,money:2000,income:180,launched:0,
+    stock:{leo:z(),llo:z(),moon:z(),mo:z(),mars:z()},
+    bld:{llo:{},moon:{},mo:{},mars:{}},
+    queue:[],ships:[mkShip('leo',0),mkShip('leo',1)],shipSeq:2,
+    tech:{},ms:{},log:[],routes:[],streak:0,dust:0,maint:{},rfrac:{},flows:{},
+    stats:{launches:0,offWindow:0,extraFuel:0,interFuel:0,toMars:0,lost:0,shipsBuilt:0},
+    won:false,hints:true,sel:'earth',tab:'loc'
+  };
+}
+function mkShip(at,idx){
+  if(idx===undefined)idx=S.shipSeq++;
+  const name=SHIPNAMES[idx%SHIPNAMES.length]+(idx>=SHIPNAMES.length?' '+ROMAN[Math.floor(idx/SHIPNAMES.length)]:'');
+  return {id:idx+1,name,status:at,cargo:null};
+}
+
+/* ================== ORBITS ================== */
+const norm180=x=>((x+180)%360+360)%360-180;
+const norm360=x=>(x%360+360)%360;
+const thE=t=>W_E*t;
+const thM=t=>THETA_M0+W_M*t;
+const phase=t=>norm180(thM(t)-thE(t));
+function idealPhase(dir,traj){const T=TRAJ[traj].T;return dir==='out'?180-W_M*T:W_E*T-180;}
+function windowAt(t,dir,traj){
+  const ideal=idealPhase(dir,traj);
+  const d=Math.abs(norm180(phase(t)-ideal));
+  const mult=1+Math.pow(d/20,2);
+  const base=TRAJ[traj][dir]*(S&&S.tech.ntr?0.65:1);
+  const fuel=base*mult;
+  const months=Math.max(5,Math.round(TRAJ[traj].T+d/14));
+  return {d,mult,fuel,base,months,feasible:fuel<=SHIP_TANK,ideal};
+}
+function nextWindow(dir,from){
+  for(let k=0;k<40;k++){const w=windowAt(from+k,dir,'hohmann');if(w.mult<=1.25)return {k,w,t:from+k};}
+  return null;
+}
+function dateStr(t){const m=((t%12)+12)%12;return MONTHS[m]+' '+(START_YEAR+Math.floor(t/12));}
+
+/* ================== HELPERS ================== */
+const $=s=>document.querySelector(s);
+function fmt(n){if(n===undefined||n===null)return '0';const a=Math.abs(n);if(a>=100)return Math.round(n).toLocaleString('en-US');if(a>=10)return (Math.round(n*10)/10).toString();return (Math.round(n*10)/10).toString();}
+function money(m){const a=Math.abs(m);const s=m<0?'-':'';return a>=1000?s+'$'+(a/1000).toFixed(2)+'B':s+'$'+Math.round(a)+'M';}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function log(msg,cls){S.log.unshift({t:S.turn,m:msg,c:cls||''});if(S.log.length>200)S.log.length=200;}
+function toast(html,cls,ms){const box=$('#toasts');while(box.children.length>=3)box.firstChild.remove();const d=document.createElement('div');d.className='toast '+(cls||'');d.innerHTML=html;$('#toasts').appendChild(d);setTimeout(()=>{d.classList.add('out');setTimeout(()=>d.remove(),600)},ms||3800);}
+function launchCost(){return S.tech.reuse?0.6:1.2;}
+function unitPrice(r){return EARTH_PRICE[r]+launchCost();}
+function supplyRate(){return S.tech.loop?0.06:0.1;}
+function cnt(loc,type){return (S.bld[loc]&&S.bld[loc][type])||0;}
+function housing(loc){const b=BLD[loc]||{};let h=0;for(const k in b)if(b[k].housing)h+=cnt(loc,k)*b[k].housing;return h;}
+function hopRate(a,b){
+  const k=a+'>'+b;
+  if(k==='leo>llo'||k==='llo>leo')return cnt('llo','gateway')?0.12:0.25;
+  if(k==='llo>moon')return 0.15;
+  if(k==='moon>llo')return cnt('moon','massdriver')?0:0.10;
+  if(k==='mo>mars')return 0.05;
+  if(k==='mars>mo')return S.tech.skyhook?0.15:0.4;
+  return 0;
+}
+function path(a,b){
+  if(a===b)return null;
+  const prev={[a]:null},q=[a];
+  while(q.length){const x=q.shift();for(const y of (GRAPH[x]||[]))if(!(y in prev)){prev[y]=x;q.push(y);}}
+  if(!(b in prev))return null;
+  const p=[b];let c=b;while(prev[c]){c=prev[c];p.unshift(c);}return p;
+}
+function pathRate(p){let r=0;for(let i=0;i<p.length-1;i++)r+=hopRate(p[i],p[i+1]);return r;}
+function reachable(a){return LOCS.filter(b=>b!=='earth'&&b!==a&&path(a,b));}
+function grant(id){
+  if(S.ms[id])return;
+  const m=MILESTONES.find(x=>x.id===id);S.ms[id]=S.turn+1;
+  S.money+=m.bonus;S.income+=m.inc;
+  log('MILESTONE: '+m.name+' - '+m.desc+(m.bonus?' (+'+money(m.bonus)+(m.inc?', +'+m.inc+'M/mo funding':'')+')':''),'gold');
+  toast('<b>&#9733; MILESTONE: '+esc(m.name).toUpperCase()+'</b><br>'+esc(m.desc)+(m.bonus?'<br><span class="dim">Bonus '+money(m.bonus)+(m.inc?' and +$'+m.inc+'M per month':'')+'</span>':''),'mstone',5200);
+  if(id==='hab')toast('Colonists can now be recruited on Earth.','',5000);
+  S._stop=true;
+}
+
+/* ================== ACTIONS ================== */
+function buyLaunch(order){
+  let mass=0,cost=0;
+  for(const r in order){const v=order[r]||0;if(v<0)return 'Invalid amount.';mass+=v;cost+=v*unitPrice(r);}
+  if(mass<=0)return 'Nothing selected.';
+  if(order.colonists>0&&!S.ms.hab)return 'Colonists are unlocked after the first Habitat on Mars.';
+  if(mass>300-S.launched+1e-9)return 'Exceeds this month\'s launch capacity.';
+  if(cost>S.money+1e-9)return 'Not enough money.';
+  S.money-=cost;S.launched+=mass;
+  for(const r in order)S.stock.leo[r]+=order[r]||0;
+  log('Launched '+fmt(mass)+' t from Earth to LEO for '+money(cost)+'.');
+  grant('leo');
+  return null;
+}
+function transfer(from,to,cargo,quiet){
+  const p=path(from,to);if(!p)return 'No route.';
+  const st=S.stock[from];let mass=0;
+  for(const r in cargo){const v=cargo[r]||0;if(v<0)return 'Invalid amount.';if(v>st[r]+1e-9)return 'Not enough '+RNAME[r]+' at '+LSHORT[from]+'.';mass+=v;}
+  if(mass<=0)return 'Nothing to move.';
+  const fuelCost=mass*pathRate(p);
+  if((cargo.fuel||0)+fuelCost>st.fuel+1e-9)return 'Need '+fmt(fuelCost)+' t fuel at '+LSHORT[from]+' to pay for the trip.';
+  if(to==='mars'&&cargo.colonists>0){const free=housing('mars')-S.stock.mars.colonists;if(cargo.colonists>free)return 'Mars housing is full (free: '+Math.max(0,free)+'). Build Habitats.';}
+  st.fuel-=fuelCost;
+  for(const r in cargo){st[r]-=cargo[r]||0;S.stock[to][r]+=cargo[r]||0;}
+  // flight phases of short hops
+  const steps=[];for(let i=0;i<p.length-1;i++){const h=HOPNAME[p[i]+'>'+p[i+1]];if(h)steps.push(h.join(' -> '));}
+  if(!quiet)log(LSHORT[from]+' -> '+LSHORT[to]+': '+fmt(mass)+' t ('+steps.join(', ')+'). Fuel used '+fmt(fuelCost)+' t.');
+  if(p.includes('llo')&&p.indexOf('llo')>0&&p[p.indexOf('llo')-1]==='leo')grant('tli');
+  if(to==='moon')grant('moonland');
+  if(to==='mars'){grant('edl');if(cargo.colonists>0)grant('humans');}
+  return null;
+}
+function build(loc,type){
+  const d=BLD[loc][type];const st=S.stock[loc];
+  if(st.robots<1)return 'Need at least 1 robot at '+LSHORT[loc]+' to build.';
+  if(d.req&&!cnt(loc,d.req))return 'Requires '+BLD[loc][d.req].name+'.';
+  if(st.parts<d.cost)return 'Need '+d.cost+' t parts.';
+  st.parts-=d.cost;
+  S.queue.push({kind:'bld',loc,type,done:S.turn+d.time});
+  log('Construction started: '+d.name+' at '+LSHORT[loc]+' (ready '+dateStr(S.turn+d.time)+').');
+  return null;
+}
+function commission(loc){
+  if(loc==='leo'){if(S.money<600)return 'Need $600M.';S.money-=600;S.queue.push({kind:'ship',loc,done:S.turn+3});log('Freighter ordered at LEO (ready '+dateStr(S.turn+3)+').');}
+  else{if(!cnt('mo','shipyard'))return 'Need a Martian Shipyard.';if(S.stock.mo.parts<100)return 'Need 100 t parts at Mars Orbit.';S.stock.mo.parts-=100;S.queue.push({kind:'ship',loc:'mo',done:S.turn+4});log('Freighter keel laid at the Martian Shipyard (ready '+dateStr(S.turn+4)+').');}
+  return null;
+}
+function research(id){const t=TECH[id];if(S.tech[id])return 'Already researched.';if(S.money<t.cost)return 'Not enough money.';S.money-=t.cost;S.tech[id]=1;log('Research complete: '+t.name+'.','good');return null;}
+function launchShip(id,traj,cargo){
+  const sh=S.ships.find(s=>s.id===id);if(!sh)return 'No ship.';
+  const from=sh.status;if(from!=='leo'&&from!=='mo')return 'Ship not docked.';
+  const dir=from==='leo'?'out':'back';const w=windowAt(S.turn,dir,traj);
+  if(!w.feasible)return 'No trajectory: fuel needed exceeds the tank.';
+  const st=S.stock[from];let mass=0;
+  for(const r in cargo){const v=cargo[r]||0;if(v<0)return 'Invalid amount.';mass+=v;if(v>st[r]+1e-9)return 'Not enough '+RNAME[r]+'.';}
+  if(mass>SHIP_CARGO+1e-9)return 'Cargo exceeds '+SHIP_CARGO+' t.';
+  if(st.fuel<w.fuel+(cargo.fuel||0)-1e-9)return 'Not enough fuel at '+LSHORT[from]+'.';
+  st.fuel-=w.fuel;for(const r in cargo)st[r]-=cargo[r]||0;
+  const to=from==='leo'?'mo':'leo';
+  Object.assign(sh,{status:'transit',from,to,traj,cargo:Object.assign(z(),cargo),launch:S.turn,arrive:S.turn+w.months,mult:w.mult,
+    th0:from==='leo'?thE(S.turn):thM(S.turn),r0:from==='leo'?R_E:R_M,th1:to==='mo'?thM(S.turn+w.months):thE(S.turn+w.months),r1:to==='mo'?R_M:R_E,phaseLogged:0});
+  S.stats.launches++;S.stats.interFuel+=w.fuel;S.stats.extraFuel+=w.fuel-w.base;if(w.mult>1.5)S.stats.offWindow++;
+  const burn=dir==='out'?'Trans-Mars Injection':'Trans-Earth Injection';
+  log(sh.name+': '+burn+' burn. '+fmt(w.fuel)+' t fuel ('+w.mult.toFixed(2)+'x). Arrival '+dateStr(sh.arrive)+'.',w.mult>1.5?'warn':'');
+  if(dir==='out'){grant('tmi');if(w.mult<=1.25&&traj==='hohmann')grant('window');}else grant('tei');
+  return null;
+}
+function scrap(id){const i=S.ships.findIndex(s=>s.id===id);if(i<0)return;const sh=S.ships[i];S.stock[sh.status].parts+=80;S.ships.splice(i,1);log(sh.name+' scrapped at '+LSHORT[sh.status]+' for 80 t parts.');}
+
+/* ================== FLIGHT PHASES ================== */
+function shipPhases(sh){
+  const n=sh.arrive-sh.launch;const mid=sh.launch+Math.max(1,Math.round(n/2));
+  const out=sh.from==='leo';
+  return [
+    {name:out?'TMI burn':'TEI burn',t:sh.launch,tip:out?'Trans-Mars Injection: leave Earth orbit onto the transfer ellipse':'Trans-Earth Injection: leave Mars orbit toward Earth'},
+    {name:'Coast',t:sh.launch+1,tip:'Unpowered cruise along the transfer orbit'},
+    {name:'Course corr.',t:mid,tip:'Mid-course correction: small burn to fine-tune the arrival point'},
+    {name:'Coast',t:mid+1,tip:'Unpowered cruise'},
+    {name:'Approach',t:sh.arrive-1,tip:'Final approach and navigation'},
+    {name:out?'Aerocapture':'Aerobrake',t:sh.arrive,tip:out?'Mars Orbit Insertion using the atmosphere to brake':'Capture into Low Earth Orbit'}
+  ];
+}
+function curPhaseIdx(sh,t){const ph=shipPhases(sh);let c=0;for(let i=0;i<ph.length;i++)if(t>=ph[i].t)c=i;return c;}
+
+/* ================== SIMULATION ================== */
+function solarMult(loc){let m=S.tech.film?1.5:1;if(loc==='mars'&&S.dust>0)m*=0.3;return m;}
+function simSite(loc){
+  const st=S.stock[loc],b=S.bld[loc]||{},defs=BLD[loc]||{};
+  const prod=z(),cons=z();
+  const wf=st.robots*(S.tech.mk2?1.5:1)+st.colonists*2;
+  let laborNeed=0,pGen=0,pNeed=0,nb=0;
+  for(const k in b){const n=b[k],d=defs[k];if(!n)continue;nb+=n;laborNeed+=n*(d.labor||0);
+    if(d.power>0)pGen+=n*d.power*(d.solar?solarMult(loc):1);else if(d.power<0)pNeed+=n*-d.power;}
+  const laborEff=laborNeed?Math.min(1,wf/laborNeed):1;
+  const powerEff=pNeed?Math.min(1,pGen/pNeed):1;
+  const maintEff=S.maint[loc]?0.6:1;
+  const eff=laborEff*powerEff*maintEff;
+  // water
+  let wProd=0,wDem=0;
+  for(const k in b){const d=defs[k],n=b[k];if(d.out&&d.out.water)wProd+=n*d.out.water*eff;if(d.inW)wDem+=n*d.inW*eff;}
+  st.water+=wProd;prod.water+=wProd;
+  const wEff=wDem?Math.min(1,st.water/wDem):1;st.water-=wDem*wEff;cons.water+=wDem*wEff;
+  for(const k in b){const d=defs[k],n=b[k];if(!d.out)continue;
+    for(const r in d.out){if(r==='water')continue;const v=n*d.out[r]*eff*(d.inW?wEff:1);st[r]+=v;prod[r]+=v;}}
+  // robot factory
+  let rfEff=0;
+  if(b.robofac){const need=b.robofac*3*eff;const pe=need?Math.min(1,st.parts/need):0;st.parts-=need*pe;cons.parts+=need*pe;
+    rfEff=eff*pe;const add=b.robofac*0.5*rfEff;S.rfrac[loc]=(S.rfrac[loc]||0)+add;prod.robots+=add;
+    while(S.rfrac[loc]>=1){S.rfrac[loc]-=1;st.robots+=1;if(loc==='mars')grant('robot');}}
+  // upkeep
+  const up=(loc==='leo'||loc==='llo')?nb*0.2:nb*0.2+st.robots*0.05;
+  if(up>0){if(st.parts>=up){st.parts-=up;cons.parts+=up;S.maint[loc]=0;}else{cons.parts+=st.parts;st.parts=0;if(!S.maint[loc]){log('Maintenance backlog at '+LSHORT[loc]+': not enough parts. Output -40%.','warn');}S.maint[loc]=1;}}
+  // colonists
+  if(st.colonists>0){const need=st.colonists*supplyRate();
+    if(st.supplies>=need){st.supplies-=need;cons.supplies+=need;}
+    else{cons.supplies+=st.supplies;st.supplies=0;const lost=Math.ceil(st.colonists*0.1);st.colonists-=lost;S.stats.lost+=lost;
+      log(lost+' colonist(s) evacuated or lost at '+LSHORT[loc]+': supplies ran out!','bad');toast('Supplies ran out at '+LSHORT[loc]+'. '+lost+' colonist(s) lost.','bad');S._stop=true;}}
+  S.flows[loc]={prod,cons,laborEff,powerEff,maintEff,eff,pGen,pNeed,wf,laborNeed,rfEff,wEff};
+  if(loc==='mars'){if(prod.fuel>0)grant('fuel');if(prod.parts>0)grant('parts');}
+}
+function indepConds(){
+  const m=S.flows.mars||{prod:z(),cons:z()},o=S.flows.mo||{prod:z(),cons:z()};
+  const net=r=>(m.prod[r]-m.cons[r])+(o.prod[r]-o.cons[r]);
+  const col=S.stock.mars.colonists;
+  return [
+    {name:'30+ colonists living on Mars',ok:col>=30,val:col+' / 30'},
+    {name:'Food self-sufficient (supplies net >= 0, with a Greenhouse)',ok:cnt('mars','greenhouse')>0&&net('supplies')>=-1e-9&&col>0,val:(net('supplies')>=0?'+':'')+fmt(net('supplies'))+' t/mo'},
+    {name:'Parts surplus (net >= +2 t/mo)',ok:net('parts')>=2,val:(net('parts')>=0?'+':'')+fmt(net('parts'))+' t/mo'},
+    {name:'Propellant surplus (net >= +5 t/mo)',ok:net('fuel')>=5,val:(net('fuel')>=0?'+':'')+fmt(net('fuel'))+' t/mo'},
+    {name:'Robot Factory running at 50%+',ok:(m.rfEff||0)>=0.5,val:Math.round((m.rfEff||0)*100)+'%'},
+    {name:'Martian Shipyard operational',ok:cnt('mo','shipyard')>0,val:cnt('mo','shipyard')?'Yes':'No'}
+  ];
+}
+function endTurn(){
+  if(S.won)return;
+  S._stop=false;
+  const prevOut=windowAt(S.turn,'out','hohmann').mult,prevBack=windowAt(S.turn,'back','hohmann').mult;
+  // 1 production
+  for(const loc of ['moon','llo','mo','mars'])simSite(loc);
+  // 2 routes
+  for(const rt of S.routes){
+    const st=S.stock[rt.from];const p=path(rt.from,rt.to);if(!p)continue;const rate=pathRate(p);
+    let amt=rt.amt;
+    const fuelAvail=st.fuel;
+    if(rt.res==='fuel')amt=Math.min(amt,fuelAvail/(1+rate));
+    else{amt=Math.min(amt,st[rt.res]);if(rate>0)amt=Math.min(amt,fuelAvail/rate);}
+    if(INTRES[rt.res])amt=Math.floor(amt);
+    if(rt.res==='colonists'&&rt.to==='mars')amt=Math.min(amt,Math.max(0,housing('mars')-S.stock.mars.colonists));
+    if(amt>0.05){transfer(rt.from,rt.to,{[rt.res]:amt},true);rt.last=amt;}else rt.last=0;
+  }
+  S.turn++;S.launched=0;
+  // 3 construction
+  for(const q of S.queue.slice()){
+    if(q.done>S.turn)continue;S.queue.splice(S.queue.indexOf(q),1);
+    if(q.kind==='bld'){S.bld[q.loc][q.type]=(S.bld[q.loc][q.type]||0)+1;const d=BLD[q.loc][q.type];log(d.name+' completed at '+LSHORT[q.loc]+'.','good');
+      if(q.loc==='moon')grant('moon');
+      if(q.loc==='mars'&&(q.type==='solar'||q.type==='reactor'))grant('power');
+      if(q.loc==='mars'&&q.type==='habitat')grant('hab');
+      if(q.loc==='mo'&&q.type==='station')grant('station');}
+    else{const sh=mkShip(q.loc);S.ships.push(sh);S.stats.shipsBuilt++;log('New freighter '+sh.name+' ready at '+LSHORT[q.loc]+'.','good');if(q.loc==='mo')grant('yard');}
+    S._stop=true;
+  }
+  // 4 ships
+  for(const sh of S.ships){
+    if(sh.status!=='transit')continue;
+    if(sh.cargo.colonists>0){const need=sh.cargo.colonists*supplyRate();
+      if(sh.cargo.supplies>=need)sh.cargo.supplies-=need;
+      else{sh.cargo.supplies=0;const lost=Math.ceil(sh.cargo.colonists*0.1);sh.cargo.colonists-=lost;S.stats.lost+=lost;log(sh.name+': supplies exhausted in deep space. '+lost+' colonist(s) lost.','bad');S._stop=true;}}
+    const ph=shipPhases(sh);const ci=curPhaseIdx(sh,S.turn);
+    if(S.turn>=sh.arrive){
+      const to=sh.to;for(const r of RES)S.stock[to][r]+=sh.cargo[r]||0;
+      if(to==='mo'){S.stats.toMars+=RES.reduce((a,r)=>a+(sh.cargo[r]||0),0);log(sh.name+': aerocapture complete - Mars Orbit Insertion. Cargo unloaded at Mars Orbit.','good');grant('moi');}
+      else{log(sh.name+': aerobraked into Low Earth Orbit. Welcome home.','good');grant('return');}
+      sh.status=to;sh.cargo=null;S._stop=true;
+    } else if(ph[2].t===S.turn){
+      const dv=sh.mult>1.5?'a large':'a small';
+      log(sh.name+': mid-course correction ('+dv+' burn). On track for '+dateStr(sh.arrive)+'.');grant('mcc');
+    }
+  }
+  // 5 income & events
+  S.money+=S.income;
+  if(S.dust>0){S.dust--;if(S.dust===0)log('The dust storm on Mars has cleared.');}
+  else if(cnt('mars','solar')&&Math.random()<0.035){S.dust=3;log('Global dust storm on Mars! Solar output -70% for 3 months.','warn');toast('Dust storm on Mars: solar power -70% for 3 months.','bad');S._stop=true;}
+  const r=Math.random();
+  if(r<0.02){S.money+=300;log('Public enthusiasm surges: emergency appropriation +$300M.','good');S._stop=true;}
+  else if(r<0.032&&S.turn>12){const c=Math.min(200,S.money);S.money-=c;log('Budget review: -'+money(c)+'.','warn');}
+  if(S.stock.mars.colonists>=30)grant('pop30');
+  // 6 windows
+  const no=windowAt(S.turn,'out','hohmann').mult,nb=windowAt(S.turn,'back','hohmann').mult;
+  if(no<=1.5&&prevOut>1.5){log('Earth -> Mars transfer window is OPENING. Load your freighters at LEO.','warn');S._stop=true;}
+  if(nb<=1.5&&prevBack>1.5&&S.ships.some(s=>s.status==='mo')){log('Mars -> Earth return window is opening.','warn');S._stop=true;}
+  // 7 independence
+  const conds=indepConds();
+  if(conds.every(c=>c.ok)){S.streak++;if(S.streak===1){log('All independence conditions met. Hold them for 12 months!','gold');S._stop=true;}}
+  else{if(S.streak>0){log('Independence streak broken after '+S.streak+' month(s).','warn');S._stop=true;}S.streak=0;}
+  if(S.streak>=12&&!S.won){S.won=true;grant('indep');save();render();setTimeout(showWin,600);return;}
+  checkTut();
+  save();
+}
+
+/* ================== TUTORIAL ================== */
+const TUT=[
+  {t:'Robots go first, humans later. Start by stocking orbit: select <b>Earth</b> (<kbd>1</kbd>) and press <b>Buy &amp; Launch</b>. Send about <b>60 t Fuel, 60 t Parts and 8 Robots</b> to Low Earth Orbit.',ok:()=>S.ms.leo},
+  {t:'Fuel from Earth is expensive. The Moon has ice. Open <b>Logistics</b> (<kbd>T</kbd>) &rarr; <b>Transfer</b> and move <b>3 Robots + 45 t Parts</b> (plus fuel to pay the trip) from LEO to the <b>Moon</b>.',ok:()=>S.stock.moon.robots>=1||S.ms.moon},
+  {t:'Select the <b>Moon</b> (<kbd>4</kbd>) and build a <b>Lunar Solar Farm</b> and an <b>Ice Refinery</b>. Lunar fuel can later be shipped down to LEO cheaply.',ok:()=>S.ms.moon},
+  {t:'Look at the orbit map. A Hohmann transfer only works when <b>Mars is ~44&deg; ahead of Earth</b>. The strip below the map shows fuel cost per launch month: <span class="good">green</span> = window. Use <b>End Month</b> / <b>Skip</b> until the window opens, then open <b>Fleet</b> (<kbd>F</kbd>) and launch a loaded freighter.',ok:()=>S.stats.launches>0},
+  {t:'Your freighter is coasting on its transfer ellipse (~9 months). Watch the flight phases in the Fleet tab. Press <b>Skip</b> (<kbd>N</kbd>) to fast-forward. Meanwhile, keep buying cargo for the <i>next</i> window - it is ~26 months away!',ok:()=>S.ms.moi},
+  {t:'Cargo arrives in Mars Orbit. Landing is cheap (aerobraking). Transfer <b>robots, parts and some fuel</b> from <b>Mars Orbit</b> down to <b>Mars</b>.',ok:()=>S.ms.edl},
+  {t:'On Mars (<kbd>6</kbd>) build <b>Solar Arrays</b>, an <b>Ice Mine</b> and a <b>Sabatier Plant</b> to make your own propellant.',ok:()=>S.ms.fuel},
+  {t:'Build a <b>Habitat</b> on Mars to unlock colonists. Humans need supplies every month, including during the voyage - pack enough!',ok:()=>S.ms.hab},
+  {t:'Final goal: <b>Independence</b>. Open <b>Goals</b> (<kbd>G</kbd>) to see the six conditions. Meet all of them for 12 months in a row.',ok:()=>S.won}
+];
+function curTut(){for(let i=0;i<TUT.length;i++)if(!TUT[i].ok())return i;return TUT.length;}
+let lastTut=-1;
+function checkTut(){const c=curTut();if(c!==lastTut&&lastTut>=0&&S.hints&&c<TUT.length){toast('New objective: see Mission Brief (bottom left).','',3000);}lastTut=c;}
+
+/* ================== SAVE ================== */
+function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(S));}catch(e){}}
+function load(){try{const s=localStorage.getItem(SAVE_KEY);return s?JSON.parse(s):null;}catch(e){return null;}}
+
+/* ================== RENDER ================== */
+function render(){renderTop();renderNodes();renderTut();renderForecast();renderLog();renderTab();renderMapInfo();}
+function renderTop(){
+  $('#tDate').textContent=dateStr(S.turn);
+  $('#tTurn').textContent='Month '+S.turn+' ('+(S.turn/12).toFixed(1)+' years)';
+  $('#tMoney').textContent=money(S.money);
+  $('#tIncome').textContent='+$'+S.income+'M per month';
+  const p=norm360(phase(S.turn));$('#tPhase').innerHTML=Math.round(p)+'&deg; <span class="dim" style="font-size:12px;font-weight:400">(ideal 44&deg;)</span>';
+  $('#tIndep').innerHTML=S.won?'<span class="gold">ACHIEVED</span>':(indepConds().filter(c=>c.ok).length+'/6 &middot; '+S.streak+'/12 mo');
+}
+function resLine(st,keys){return keys.map(r=>'<span>'+RNAME[r]+' <b>'+fmt(st[r])+'</b></span>').join('');}
+function renderNodes(){
+  const shipsAt=l=>S.ships.filter(s=>s.status===l).length;
+  const transit=S.ships.filter(s=>s.status==='transit');
+  let h='';
+  const node=(l,i,body,sub)=>`<div class="node ${S.sel===l?'sel':''}" data-sel="${l}"><div class="nh"><b>${LNAME[l]}</b><span class="k">${i}</span></div>${body}${sub?'<div class="sub">'+sub+'</div>':''}</div>`;
+  h+=node('earth','1',`<div class="sub">Launch capacity ${fmt(300-S.launched)} / 300 t this month</div>`,'Market: buy and launch cargo to LEO');
+  h+='<div class="link">&#8597; heavy lift ($'+launchCost().toFixed(1)+'M/t)</div>';
+  const bsum=l=>{const b=S.bld[l]||{};const a=Object.keys(b).filter(k=>b[k]).map(k=>b[k]+'x '+BLD[l][k].name);const q=S.queue.filter(x=>x.loc===l&&x.kind==='bld').length;return (a.join(', ')||'No buildings')+(q?' &middot; '+q+' under construction':'');};
+  const st=S.stock;
+  h+=node('leo','2','<div class="res">'+resLine(st.leo,['fuel','parts','supplies','robots','colonists'])+'</div>',shipsAt('leo')+' freighter(s) docked');
+  h+='<div class="link">&#8597; '+hopRate('leo','llo')+' t fuel per t</div>';
+  h+=node('llo','3','<div class="res">'+resLine(st.llo,['fuel','parts','robots'])+'</div>',bsum('llo'));
+  h+='<div class="link">&#8597; down '+hopRate('llo','moon')+' / up '+hopRate('moon','llo')+' t/t</div>';
+  h+=node('moon','4','<div class="res">'+resLine(st.moon,['fuel','parts','robots'])+'</div>',bsum('moon'));
+  const ow=nextWindow('out',S.turn);
+  h+='<div class="link ip">&#9201; INTERPLANETARY &middot; '+transit.length+' in transit &middot; '+(ow?(ow.k===0?'window OPEN':'window in '+ow.k+' mo'):'')+'</div>';
+  h+=node('mo','5','<div class="res">'+resLine(st.mo,['fuel','parts','supplies','robots','colonists'])+'</div>',shipsAt('mo')+' docked &middot; '+bsum('mo'));
+  h+='<div class="link">&#8597; down '+hopRate('mo','mars')+' / up '+hopRate('mars','mo')+' t/t</div>';
+  h+=node('mars','6','<div class="res">'+resLine(st.mars,['fuel','parts','supplies','water','robots','colonists'])+'</div>',bsum('mars')+(S.dust?' &middot; <span class="warn">DUST STORM</span>':''));
+  $('#nodes').innerHTML=h;
+}
+function renderTut(){
+  const c=curTut();
+  let h='<h3><span>MISSION BRIEF '+(c<TUT.length?(c+1)+'/'+TUT.length:'')+'</span><button class="small" data-act="hints">'+(S.hints?'Hide':'Show')+'</button></h3>';
+  if(S.hints){h+=c<TUT.length?'<p>'+TUT[c].t+'</p>':'<p class="gold">Mars is independent. Well done!</p>';}
+  else h+='<p class="faint">Hints hidden.</p>';
+  $('#tut').innerHTML=h;
+}
+function multColor(m,feas){if(!feas)return '#1b2232';if(m<=1.25)return '#2fbf71';if(m<=1.6)return '#9bc83a';if(m<=2.2)return '#e0a630';return '#b8442f';}
+function renderForecast(){
+  let h='<div class="fh"><b>TRANSFER WINDOW FORECAST (Hohmann fuel cost by launch month)</b><div class="legend"><span><i style="background:#2fbf71"></i>&le;1.25x</span><span><i style="background:#9bc83a"></i>&le;1.6x</span><span><i style="background:#e0a630"></i>&le;2.2x</span><span><i style="background:#b8442f"></i>costly</span><span><i style="background:#1b2232"></i>impossible</span></div></div>';
+  h+='<div class="frow"><div class="lbl"></div>';
+  for(let k=0;k<36;k++){const t=S.turn+k;const m=((t%12)+12)%12;h+='<div class="mlab">'+(m===0?"'"+String(START_YEAR+Math.floor(t/12)).slice(2):MONTHS[m][0])+'</div>';}
+  h+='</div>';
+  for(const dir of ['out','back']){
+    h+='<div class="frow"><div class="lbl">'+(dir==='out'?'Earth &rarr; Mars':'Mars &rarr; Earth')+'</div>';
+    for(let k=0;k<36;k++){const t=S.turn+k;const w=windowAt(t,dir,'hohmann');
+      h+='<div class="cell '+(k===0?'now':'')+'" style="background:'+multColor(w.mult,w.feasible)+'" title="'+dateStr(t)+': '+(w.feasible?w.mult.toFixed(2)+'x fuel ('+fmt(w.fuel)+' t), '+w.months+' months, arrive '+dateStr(t+w.months):'no feasible trajectory (fuel > tank)')+'"></div>';}
+    h+='</div>';
+  }
+  $('#forecast').innerHTML=h;
+}
+function renderLog(){$('#log').innerHTML=S.log.slice(0,80).map(l=>'<div class="'+l.c+'"><span class="t">'+dateStr(l.t)+'</span>'+esc(l.m)+'</div>').join('');}
+function renderMapInfo(){
+  const w=windowAt(S.turn,'out','hohmann');const nw=nextWindow('out',S.turn);
+  let h;
+  if(w.mult<=1.25)h='<span id="winbadge" style="color:#46d38a;border-color:#46d38a;background:#0d2a1c">EARTH &rarr; MARS WINDOW OPEN &middot; '+w.mult.toFixed(2)+'x fuel</span>';
+  else if(w.feasible)h='<span id="winbadge" style="color:#ffc04d;border-color:#7a5b20;background:#2a210d">Off-window launch: '+w.mult.toFixed(2)+'x fuel</span>';
+  else h='<span id="winbadge" style="color:#8a97b0;border-color:#25314a;background:#0e1421">Earth &rarr; Mars: no trajectory</span>';
+  if(nw&&nw.k>0)h+='<div class="dim" style="margin-top:4px">Next window: <b style="color:#dbe3f1">'+dateStr(nw.t)+'</b> (in '+nw.k+' months)</div>';
+  const rb=nextWindow('back',S.turn);
+  if(rb)h+='<div class="faint" style="font-size:12px">Return window: '+(rb.k===0?'<span class="good">OPEN</span>':dateStr(rb.t)+' (in '+rb.k+' mo)')+'</div>';
+  if(S.dust)h+='<div class="warn" style="margin-top:4px">Dust storm on Mars ('+S.dust+' mo)</div>';
+  $('#mapinfo').innerHTML=h;
+}
+function flowStr(loc,r){const f=S.flows[loc];if(!f)return '';const n=f.prod[r]-f.cons[r];if(Math.abs(n)<0.05)return '';return '<span class="flow '+(n>0?'good':'bad')+'">'+(n>0?'+':'')+fmt(n)+'/mo</span>';}
+function renderTab(){
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.tab===S.tab));
+  const f={loc:tabLoc,fleet:tabFleet,logi:tabLogi,tech:tabTech,goals:tabGoals}[S.tab];
+  $('#tabbody').innerHTML=f();
+}
+function tabLoc(){
+  const l=S.sel;let h='<h2>'+LNAME[l]+'</h2>';
+  if(l==='earth'){
+    h+='<p class="dim">Earth has everything except a cheap way up. Every tonne must be bought and lifted out of Earth\'s deep gravity well.</p>';
+    h+='<button class="primary" data-act="buy">Buy &amp; Launch to LEO <kbd>B</kbd></button>';
+    h+='<h4>Prices delivered to LEO</h4><table><tr><th>Item</th><th class="n">Purchase</th><th class="n">Launch</th><th class="n">Total</th></tr>';
+    for(const r in EARTH_PRICE){if(r==='colonists'&&!S.ms.hab){h+='<tr><td>Colonists</td><td colspan="3" class="n faint">locked until a Habitat stands on Mars</td></tr>';continue;}
+      h+='<tr><td>'+RNAME[r]+(INTRES[r]?' (1 t each)':' (per t)')+'</td><td class="n">$'+EARTH_PRICE[r]+'M</td><td class="n">$'+launchCost().toFixed(1)+'M</td><td class="n">$'+unitPrice(r).toFixed(1)+'M</td></tr>';}
+    h+='</table><p class="dim">Launch capacity: <b>'+fmt(300-S.launched)+'</b> of 300 t left this month.</p>';
+    h+='<h4>Freighters</h4><p class="dim">Each freighter carries '+SHIP_CARGO+' t of cargo and up to '+SHIP_TANK+' t of fuel for its own burn. Fuel for the burn must be stored in LEO.</p><button data-act="commission" data-loc="leo">Commission freighter at LEO ($600M, 3 months)</button>';
+    return h;
+  }
+  const st=S.stock[l],fl=S.flows[l];
+  h+='<table><tr><th>Stock</th><th class="n">Amount</th><th class="n">Last month</th></tr>';
+  for(const r of RES){if(r==='water'&&l!=='mars')continue;h+='<tr><td>'+RNAME[r]+'</td><td class="n">'+fmt(st[r])+' '+RUNIT[r]+'</td><td class="n">'+flowStr(l,r)+'</td></tr>';}
+  h+='</table>';
+  if(BLD[l]&&fl){
+    h+='<div class="dl" style="margin-top:6px"><dt>Power</dt><dd>'+fmt(fl.pGen)+' made / '+fmt(fl.pNeed)+' needed '+(fl.powerEff<1?'<span class="bad">(shortage)</span>':'')+'</dd>';
+    h+='<dt>Workforce</dt><dd>'+fmt(fl.wf)+' / '+fmt(fl.laborNeed)+' needed '+(fl.laborEff<1?'<span class="bad">(short of workers)</span>':'')+'</dd>';
+    h+='<dt>Efficiency</dt><dd>'+Math.round(fl.eff*100)+'%'+(fl.maintEff<1?' <span class="warn">maintenance backlog</span>':'')+'</dd>';
+    if(housing(l))h+='<dt>Housing</dt><dd>'+st.colonists+' / '+housing(l)+'</dd>';
+    h+='</div><p class="faint" style="font-size:11px">Robots are workers (1 each'+(S.tech.mk2?', 1.5 with Mk II':'')+'), colonists count as 2. Upkeep: 0.2 t parts per building, 0.05 t per robot each month.</p>';
+  }
+  h+='<div class="row" style="margin:8px 0"><button data-act="transfer" data-from="'+l+'">Transfer from here</button>';
+  if(l==='mo'&&cnt('mo','shipyard'))h+='<button data-act="commission" data-loc="mo">Build freighter (100 t parts, 4 mo)</button>';
+  h+='</div>';
+  const docked=S.ships.filter(s=>s.status===l);
+  if(docked.length){h+='<h4>Docked freighters</h4>';for(const s of docked)h+='<div class="between card"><b>'+esc(s.name)+'</b><span><button class="small primary" data-act="launch" data-id="'+s.id+'">Load &amp; Launch to '+(l==='leo'?'Mars':'Earth')+'</button>'+(l==='mo'?' <button class="small" data-act="scrap" data-id="'+s.id+'">Scrap</button>':'')+'</span></div>';}
+  if(BLD[l]){
+    const q=S.queue.filter(x=>x.loc===l);
+    if(q.length){h+='<h4>Under construction</h4>';for(const x of q)h+='<div class="between"><span>'+(x.kind==='bld'?BLD[l][x.type].name:'Freighter')+'</span><span class="dim">ready '+dateStr(x.done)+'</span></div>';}
+    h+='<h4>Build (needs 1+ robot on site)</h4>';
+    for(const k in BLD[l]){const d=BLD[l][k];const can=st.robots>=1&&st.parts>=d.cost&&(!d.req||cnt(l,d.req));
+      const extra=[];if(d.labor)extra.push(d.labor+' workers');if(d.power<0)extra.push(-d.power+' power');
+      h+='<div class="bcard"><div><span class="bn">'+d.name+'</span>'+(cnt(l,k)?'<span class="cnt">x'+cnt(l,k)+'</span>':'')+'</div><button class="small" '+(can?'':'disabled')+' data-act="build" data-loc="'+l+'" data-type="'+k+'">Build</button><div class="bd">'+d.desc+'<br><span class="faint">'+d.cost+' t parts &middot; '+d.time+' mo'+(extra.length?' &middot; uses '+extra.join(', '):'')+(d.req?' &middot; requires '+BLD[l][d.req].name:'')+'</span></div></div>';}
+  } else if(l==='leo'){h+='<p class="dim">LEO is the staging yard. Fill it with fuel and cargo before each transfer window: freighters burn their fuel from here.</p>';}
+  return h;
+}
+function phaseBar(sh){
+  const ph=shipPhases(sh);const ci=curPhaseIdx(sh,S.turn);
+  return '<div class="phases">'+ph.map((p,i)=>'<div class="'+(i<ci?'done':i===ci?'cur':'')+'" title="'+p.tip+' ('+dateStr(p.t)+')">'+p.name+'</div>').join('')+'</div>';
+}
+function cargoStr(c){if(!c)return '';const a=RES.filter(r=>c[r]>0.05).map(r=>fmt(c[r])+(RUNIT[r]?' t ':' ')+RNAME[r].toLowerCase());return a.join(', ')||'empty';}
+function tabFleet(){
+  let h='<h2>Fleet</h2><p class="dim">Freighters: '+SHIP_CARGO+' t cargo, '+SHIP_TANK+' t tank. They burn fuel stored at their departure point (LEO or Mars Orbit).</p>';
+  for(const s of S.ships){
+    h+='<div class="card"><div class="between"><b>'+esc(s.name)+'</b>';
+    if(s.status==='transit'){const ci=curPhaseIdx(s,S.turn);h+='<span class="pill w">'+LSHORT[s.from]+' &rarr; '+LSHORT[s.to]+' &middot; arrives '+dateStr(s.arrive)+'</span></div>';
+      h+=phaseBar(s)+'<div class="dim" style="font-size:12px">Month '+(S.turn-s.launch)+' of '+(s.arrive-s.launch)+' &middot; '+(s.traj==='fast'?'fast transfer':'Hohmann')+' at '+s.mult.toFixed(2)+'x &middot; Cargo: '+cargoStr(s.cargo)+'</div>';}
+    else{h+='<span class="pill g">Docked at '+LSHORT[s.status]+'</span></div><div class="row" style="margin-top:5px"><button class="small primary" data-act="launch" data-id="'+s.id+'">Load &amp; Launch to '+(s.status==='leo'?'Mars':'Earth')+'</button>'+(s.status==='mo'?'<button class="small" data-act="scrap" data-id="'+s.id+'">Scrap for 80 t parts</button>':'')+'</div>';}
+    h+='</div>';
+  }
+  const q=S.queue.filter(x=>x.kind==='ship');
+  for(const x of q)h+='<div class="card dim">New freighter under construction at '+LSHORT[x.loc]+' - ready '+dateStr(x.done)+'</div>';
+  h+='<div class="row" style="margin-top:8px"><button data-act="commission" data-loc="leo">Commission at LEO ($600M, 3 mo)</button>'+(cnt('mo','shipyard')?'<button data-act="commission" data-loc="mo">Build at Mars (100 t parts)</button>':'')+'</div>';
+  h+='<h4>Flight phases</h4><p class="dim" style="font-size:12px"><b>TMI/TEI burn</b>: leave orbit onto the transfer path (this is where the fuel goes). <b>Coast</b>: no engines, just orbital mechanics. <b>Course correction</b>: small mid-way trim. <b>Aerocapture</b>: dive through the atmosphere to brake into orbit, saving fuel.</p>';
+  return h;
+}
+function tabLogi(){
+  let h='<h2>Logistics</h2><p class="dim">Short hops between nearby nodes take place within the month. Fuel is paid at the origin, per tonne moved.</p>';
+  h+='<button class="primary" data-act="transfer" data-from="'+(S.sel==='earth'?'leo':S.sel)+'">New Transfer</button>';
+  h+='<h4>Hop costs (t of fuel per t of cargo)</h4><table><tr><th>Hop</th><th>Maneuvers</th><th class="n">Cost</th></tr>';
+  for(const k in HOPNAME){const [a,b]=k.split('>');h+='<tr><td>'+LSHORT[a]+' &rarr; '+LSHORT[b]+'</td><td class="dim">'+HOPNAME[k].join(' &rarr; ')+'</td><td class="n">'+hopRate(a,b).toFixed(2)+'</td></tr>';}
+  h+='</table><p class="faint" style="font-size:11px">Mars gravity is ~2x the Moon\'s, so lifting off Mars is costly; landing is cheap because the atmosphere does the braking.</p>';
+  h+='<h4>Monthly standing orders</h4>';
+  if(!S.routes.length)h+='<p class="faint">None. Tick "Repeat every month" in a transfer to automate supply runs (e.g. Moon fuel to LEO).</p>';
+  S.routes.forEach((r,i)=>{h+='<div class="between card"><span>'+fmt(r.amt)+' '+RNAME[r.res]+' : '+LSHORT[r.from]+' &rarr; '+LSHORT[r.to]+' <span class="faint">(last: '+fmt(r.last||0)+')</span></span><button class="small" data-act="delroute" data-i="'+i+'">Cancel</button></div>';});
+  return h;
+}
+function tabTech(){
+  let h='<h2>Research</h2><p class="dim">Spend Earth funding on technology. Each is a one-time purchase.</p>';
+  for(const k in TECH){const t=TECH[k];h+='<div class="bcard"><div class="bn">'+t.name+(S.tech[k]?' <span class="pill g">done</span>':'')+'</div>'+(S.tech[k]?'<span></span>':'<button class="small" data-act="tech" data-id="'+k+'" '+(S.money>=t.cost?'':'disabled')+'>'+money(t.cost)+'</button>')+'<div class="bd">'+t.desc+'</div></div>';}
+  return h;
+}
+function tabGoals(){
+  const c=indepConds();
+  let h='<h2>Independence</h2><p class="dim">Mars and Mars Orbit must meet all six conditions for <b>12 consecutive months</b>.</p>';
+  for(const x of c)h+='<div class="cond '+(x.ok?'ok':'')+'"><div class="ck">'+(x.ok?'&#10003;':'')+'</div><div style="flex:1">'+x.name+'</div><div class="dim">'+x.val+'</div></div>';
+  h+='<div style="margin:8px 0 4px" class="between"><span>Streak</span><b>'+S.streak+' / 12 months</b></div><div class="bar"><i style="width:'+(S.streak/12*100)+'%"></i></div>';
+  const got=MILESTONES.filter(m=>S.ms[m.id]).length;
+  h+='<h4>Milestones '+got+' / '+MILESTONES.length+'</h4>';
+  for(const m of MILESTONES)h+='<div class="ms '+(S.ms[m.id]?'got':'')+'"><div class="ic">'+(S.ms[m.id]?'&#9733;':'')+'</div><div><div class="mt">'+m.name+(S.ms[m.id]?' <span class="faint" style="font-weight:400;font-size:11px">'+dateStr(S.ms[m.id]-1)+'</span>':'')+'</div><div class="md">'+m.desc+(m.bonus?' Reward '+money(m.bonus)+(m.inc?' +$'+m.inc+'M/mo':''):'')+'</div></div></div>';
+  return h;
+}
+
+/* ================== MODALS ================== */
+function openModal(html,wide){$('#modal').innerHTML='<div class="mbox '+(wide?'wide':'')+'">'+html+'</div>';$('#modalWrap').classList.add('show');const f=$('#modal input');if(f)setTimeout(()=>f.focus(),30);}
+function closeModal(){$('#modalWrap').classList.remove('show');$('#modal').innerHTML='';}
+const modalOpen=()=>$('#modalWrap').classList.contains('show');
+const numVal=id=>{const e=document.getElementById(id);if(!e)return 0;const v=parseFloat(e.value);return isFinite(v)&&v>0?v:0;};
+
+function openBuy(){
+  const items=Object.keys(EARTH_PRICE).filter(r=>r!=='colonists'||S.ms.hab);
+  let h='<h2>Buy &amp; Launch to LEO</h2><table class="cargo"><tr><th>Item</th><th class="n">$M / unit</th><th>Amount</th><th></th></tr>';
+  for(const r of items)h+='<tr><td>'+RNAME[r]+'</td><td class="n">'+unitPrice(r).toFixed(1)+'</td><td><input type="number" min="0" step="'+(INTRES[r]?1:10)+'" id="b_'+r+'" value="0"></td><td><button class="small" data-add="'+r+'" data-v="'+(INTRES[r]?1:10)+'">+'+(INTRES[r]?1:10)+'</button> <button class="small" data-add="'+r+'" data-v="'+(INTRES[r]?5:50)+'">+'+(INTRES[r]?5:50)+'</button></td></tr>';
+  h+='</table><div id="b_sum" class="note"></div><div class="foot"><button data-act="close">Cancel <kbd>Esc</kbd></button><button class="primary" id="b_go">Buy &amp; Launch <kbd>Enter</kbd></button></div>';
+  openModal(h);
+  const upd=()=>{let mass=0,cost=0;for(const r of items){const v=numVal('b_'+r);mass+=v;cost+=v*unitPrice(r);}
+    const cap=300-S.launched;const ok=mass>0&&mass<=cap+1e-9&&cost<=S.money+1e-9;
+    $('#b_sum').className='note '+(ok?'ok':mass>0?'bad':'');
+    $('#b_sum').innerHTML='Mass <b>'+fmt(mass)+' t</b> of '+fmt(cap)+' t capacity &middot; Cost <b>'+money(cost)+'</b> of '+money(S.money)+(mass>cap?' &middot; <span class="bad">over capacity</span>':'')+(cost>S.money?' &middot; <span class="bad">not enough money</span>':'');
+    $('#b_go').disabled=!ok;};
+  $('#modal').oninput=upd;
+  $('#modal').onclick=e=>{const a=e.target.closest('[data-add]');if(a){const i=$('#b_'+a.dataset.add);i.value=(parseFloat(i.value)||0)+parseFloat(a.dataset.v);upd();}};
+  $('#b_go').onclick=()=>{const o={};for(const r of items){let v=numVal('b_'+r);if(INTRES[r])v=Math.floor(v);o[r]=v;}const e=buyLaunch(o);if(e)toast(e,'bad');else{closeModal();render();}};
+  upd();
+}
+function openTransfer(from){
+  if(!from||from==='earth')from='leo';
+  const froms=['leo','llo','moon','mo','mars'];
+  let h='<h2>Transfer</h2><div class="row" style="gap:16px">From <select id="t_from"></select> To <select id="t_to"></select></div><div id="t_route" class="dim" style="margin:6px 0"></div>';
+  h+='<table class="cargo"><tr><th>Cargo</th><th class="n">Available</th><th>Amount</th><th></th></tr><tbody id="t_rows"></tbody></table>';
+  h+='<div id="t_sum" class="note"></div><label class="row"><input type="checkbox" id="t_rep"> Repeat every month (standing order; one resource only)</label>';
+  h+='<div class="foot"><button data-act="close">Cancel <kbd>Esc</kbd></button><button class="primary" id="t_go">Transfer <kbd>Enter</kbd></button></div>';
+  openModal(h);
+  const selStyle='background:#0a0f1a;color:#dbe3f1;border:1px solid #25314a;border-radius:5px;padding:3px 6px;font:inherit';
+  $('#t_from').style.cssText=selStyle;$('#t_to').style.cssText=selStyle;
+  $('#t_from').innerHTML=froms.map(l=>'<option value="'+l+'" '+(l===from?'selected':'')+'>'+LSHORT[l]+'</option>').join('');
+  const fillTo=()=>{const f=$('#t_from').value;const opts=reachable(f);const pref={leo:'moon',moon:'leo',llo:'moon',mo:'mars',mars:'mo'}[f];$('#t_to').innerHTML=opts.map(l=>'<option value="'+l+'" '+(l===pref?'selected':'')+'>'+LSHORT[l]+'</option>').join('');fillRows();};
+  const fillRows=()=>{const f=$('#t_from').value;const st=S.stock[f];
+    $('#t_rows').innerHTML=RES.map(r=>'<tr><td>'+RNAME[r]+'</td><td class="n">'+fmt(st[r])+'</td><td><input type="number" min="0" step="'+(INTRES[r]?1:5)+'" id="t_'+r+'" value="0"></td><td><button class="small" data-max="'+r+'">Max</button></td></tr>').join('');upd();};
+  const upd=()=>{const f=$('#t_from').value,t=$('#t_to').value;const p=path(f,t);if(!p){$('#t_go').disabled=true;return;}
+    const rate=pathRate(p);const steps=[];for(let i=0;i<p.length-1;i++)steps.push(HOPNAME[p[i]+'>'+p[i+1]].join(' &rarr; '));
+    $('#t_route').innerHTML='Route: '+p.map(x=>LSHORT[x]).join(' &rarr; ')+' &middot; '+steps.join(' &middot; ')+' &middot; <b>'+rate.toFixed(2)+' t fuel per t</b>';
+    let mass=0;for(const r of RES)mass+=numVal('t_'+r);const cost=mass*rate;const st=S.stock[f];
+    let err='';for(const r of RES)if(numVal('t_'+r)>st[r]+1e-9)err='Not enough '+RNAME[r]+'.';
+    if(!err&&numVal('t_fuel')+cost>st.fuel+1e-9)err='Not enough fuel to pay for the trip.';
+    if(!err&&t==='mars'&&numVal('t_colonists')>housing('mars')-S.stock.mars.colonists)err='Not enough housing on Mars.';
+    const nres=RES.filter(r=>numVal('t_'+r)>0).length;if(!err&&$('#t_rep').checked&&nres!==1)err='A standing order moves exactly one resource.';
+    $('#t_sum').className='note '+(err?'bad':mass>0?'ok':'');
+    $('#t_sum').innerHTML='Cargo <b>'+fmt(mass)+' t</b> &middot; Trip fuel <b>'+fmt(cost)+' t</b> (from '+LSHORT[f]+', '+fmt(st.fuel)+' t available)'+(err?'<br><span class="bad">'+err+'</span>':'');
+    $('#t_go').disabled=!!err||mass<=0;};
+  $('#t_from').onchange=fillTo;$('#t_to').onchange=upd;
+  $('#modal').oninput=upd;
+  $('#modal').onclick=e=>{const m=e.target.closest('[data-max]');if(!m)return;const r=m.dataset.max;const f=$('#t_from').value,t=$('#t_to').value;const p=path(f,t);if(!p)return;const rate=pathRate(p);const st=S.stock[f];
+    $('#t_'+r).value=0;let other=0;for(const x of RES)other+=numVal('t_'+x);
+    let v;if(r==='fuel')v=(st.fuel-other*rate)/(1+rate);else{v=st[r];if(rate>0)v=Math.min(v,(st.fuel-numVal('t_fuel')-other*rate)/rate);}
+    if(r==='colonists'&&t==='mars')v=Math.min(v,housing('mars')-S.stock.mars.colonists);
+    v=Math.max(0,INTRES[r]?Math.floor(v):Math.floor(v*10)/10);$('#t_'+r).value=v;upd();};
+  $('#t_go').onclick=()=>{const f=$('#t_from').value,t=$('#t_to').value;const c={};for(const r of RES){let v=numVal('t_'+r);if(INTRES[r])v=Math.floor(v);if(v>0)c[r]=v;}
+    const rep=$('#t_rep').checked;const e=transfer(f,t,c);if(e){toast(e,'bad');return;}
+    if(rep){const r=Object.keys(c)[0];S.routes.push({from:f,to:t,res:r,amt:c[r]});log('Standing order: '+fmt(c[r])+' '+RNAME[r]+' '+LSHORT[f]+' -> '+LSHORT[t]+' every month.');}
+    closeModal();render();};
+  fillTo();
+}
+function openLaunch(id){
+  const sh=S.ships.find(s=>s.id===id);if(!sh)return;const from=sh.status;const dir=from==='leo'?'out':'back';const st=S.stock[from];
+  const keys=['fuel','parts','supplies','robots','colonists','water'].filter(r=>r!=='water'||from==='mo');
+  let h='<h2>'+esc(sh.name)+': '+(dir==='out'?'LEO &rarr; Mars Orbit':'Mars Orbit &rarr; LEO')+'</h2><div class="grid2"><div>';
+  h+='<h4 style="margin-top:0">Trajectory</h4>';
+  for(const k in TRAJ)h+='<label class="row" style="align-items:flex-start;margin-bottom:4px"><input type="radio" name="traj" value="'+k+'" '+(k==='hohmann'?'checked':'')+'><span><b>'+TRAJ[k].name+'</b><br><span class="dim" style="font-size:12px">'+TRAJ[k].desc+'</span></span></label>';
+  h+='<h4>Cargo (max '+SHIP_CARGO+' t)</h4><table class="cargo"><tr><th></th><th class="n">At '+LSHORT[from]+'</th><th>Load</th><th></th></tr>';
+  for(const r of keys)h+='<tr><td>'+RNAME[r]+'</td><td class="n">'+fmt(st[r])+'</td><td><input type="number" min="0" step="'+(INTRES[r]?1:5)+'" id="l_'+r+'" value="0"></td><td><button class="small" data-max="'+r+'">Max</button></td></tr>';
+  h+='</table></div><div><h4 style="margin-top:0">Flight plan</h4><div id="l_plan"></div></div></div>';
+  h+='<div id="l_sum" class="note"></div><div class="foot"><button data-act="close">Cancel <kbd>Esc</kbd></button><button class="primary" id="l_go">Launch <kbd>Enter</kbd></button></div>';
+  openModal(h,true);
+  const traj=()=>document.querySelector('input[name=traj]:checked').value;
+  const upd=()=>{
+    const tj=traj();const w=windowAt(S.turn,dir,tj);
+    let mass=0;for(const r of keys)mass+=numVal('l_'+r);
+    let err='';
+    if(!w.feasible)err='No trajectory now: it would need '+fmt(w.fuel)+' t fuel, the tank holds '+SHIP_TANK+' t. Wait for the window.';
+    for(const r of keys)if(!err&&numVal('l_'+r)>st[r]+1e-9)err='Not enough '+RNAME[r]+' at '+LSHORT[from]+'.';
+    if(!err&&mass>SHIP_CARGO+1e-9)err='Cargo over '+SHIP_CARGO+' t.';
+    if(!err&&st.fuel<w.fuel+numVal('l_fuel')-1e-9)err='Need '+fmt(w.fuel)+' t fuel at '+LSHORT[from]+' for the burn (have '+fmt(st.fuel-numVal('l_fuel'))+' t after cargo).';
+    const col=numVal('l_colonists');const needSup=col*supplyRate()*w.months;
+    let warn='';if(col>0&&numVal('l_supplies')<needSup)warn='Colonists need '+fmt(needSup)+' t supplies for '+w.months+' months in space.';
+    const cur=phase(S.turn);const next=nextWindow(dir,S.turn+1);
+    let plan='<div class="dl"><dt>Phase angle now</dt><dd>'+Math.round(norm360(cur))+'&deg; (Mars ahead of Earth)</dd><dt>Ideal for this path</dt><dd>'+Math.round(norm360(w.ideal))+'&deg; (off by '+Math.round(w.d)+'&deg;)</dd><dt>Fuel multiplier</dt><dd class="'+(w.mult<=1.25?'good':w.mult<=2.2?'warn':'bad')+'"><b>'+w.mult.toFixed(2)+'x</b></dd><dt>Burn fuel</dt><dd>'+fmt(w.fuel)+' t'+(w.feasible?'':' (exceeds tank)')+'</dd><dt>Flight time</dt><dd>'+w.months+' months</dd><dt>Arrival</dt><dd>'+dateStr(S.turn+w.months)+'</dd></div>';
+    if(w.feasible){const fake={launch:S.turn,arrive:S.turn+w.months,from};plan+='<div class="phases" style="margin-top:8px">'+shipPhases(fake).map(p=>'<div title="'+p.tip+'">'+p.name+'<br><span style="font-size:9px">'+dateStr(p.t)+'</span></div>').join('')+'</div>';}
+    if(w.mult>1.3)plan+='<div class="note w">Earth and Mars are out of position. To hit Mars, the ship must fly a steeper, non-Hohmann arc and burn harder. '+(next?'Next good window: <b>'+dateStr(next.t)+'</b> ('+(next.t-S.turn)+' months).':'')+'</div>';
+    $('#l_plan').innerHTML=plan;
+    $('#l_sum').className='note '+(err?'bad':warn?'w':'ok');
+    $('#l_sum').innerHTML='Cargo <b>'+fmt(mass)+' / '+SHIP_CARGO+' t</b> &middot; Burn fuel <b>'+fmt(w.fuel)+' t</b> from '+LSHORT[from]+' stock ('+fmt(st.fuel)+' t)'+(err?'<br><span class="bad">'+err+'</span>':'')+(warn?'<br><span class="warn">'+warn+'</span>':'');
+    $('#l_go').disabled=!!err;
+  };
+  $('#modal').oninput=upd;$('#modal').onchange=upd;
+  $('#modal').onclick=e=>{const m=e.target.closest('[data-max]');if(!m)return;const r=m.dataset.max;$('#l_'+r).value=0;
+    let mass=0;for(const x of keys)mass+=numVal('l_'+x);const w=windowAt(S.turn,dir,traj());
+    let v=Math.min(st[r],SHIP_CARGO-mass);if(r==='fuel')v=Math.min(v,st.fuel-w.fuel);
+    v=Math.max(0,INTRES[r]?Math.floor(v):Math.floor(v*10)/10);$('#l_'+r).value=v;upd();};
+  $('#l_go').onclick=()=>{const c={};for(const r of keys){let v=numVal('l_'+r);if(INTRES[r])v=Math.floor(v);c[r]=v;}const e=launchShip(id,traj(),c);if(e){toast(e,'bad');return;}closeModal();render();};
+  upd();
+}
+function showHelp(){
+  openModal(`<h2>How to Play</h2>
+  <p><b>Goal.</b> Build a Martian civilisation that no longer needs Earth. Robots go first and build the base; humans follow once there are habitats. Win by holding all six <b>Independence</b> conditions (Goals tab) for 12 months.</p>
+  <p><b>Turns.</b> One turn = one month. <kbd>Space</kbd> ends the month. <kbd>N</kbd> skips ahead until something happens (window opens, ship arrives, building done...).</p>
+  <p><b>The supply chain.</b> Earth &rarr; LEO (buy &amp; launch, costs money) &rarr; Lunar Orbit &rarr; Moon (cheap lunar fuel and parts) &middot; LEO &rArr; Mars Orbit (freighters) &rarr; Mars.</p>
+  <h4>Why transfer windows?</h4>
+  <p>Earth and Mars both orbit the Sun, Earth faster (12 months) than Mars (~23 months). The cheapest path, a <b>Hohmann transfer</b>, is half an ellipse touching Earth's orbit at departure and Mars' orbit 180&deg; later, taking about 8.5 months. For Mars to be at that arrival point when the ship gets there, Mars must be about <b>44&deg; ahead of Earth</b> at launch. That alignment repeats only every <b>~26 months</b> (the synodic period).</p>
+  <p>Launching off-window means a steeper path: fuel grows quickly (1 month early/late &asymp; 1.5x, 2 months &asymp; 3x, beyond that the tank is not big enough). Coming home has its own window: Mars must be ~75&deg; ahead of Earth.</p>
+  <p>On the map: the dashed ghost shows where Mars must be for a launch; the dotted arc is the Hohmann path from Earth's current position; the small marker shows where Mars will really be when you arrive.</p>
+  <h4>Flight phases</h4>
+  <p>TMI burn (leave Earth orbit) &rarr; Coast &rarr; Mid-course correction &rarr; Coast &rarr; Approach &rarr; Aerocapture into Mars orbit. Short hops: Trans-Lunar Injection, Lunar Orbit Insertion, Landing, Ascent, Entry-Descent-Landing on Mars. Each first time earns a milestone.</p>
+  <h4>Keys</h4>
+  <p><kbd>1</kbd>-<kbd>6</kbd> select location &middot; <kbd>B</kbd> buy on Earth &middot; <kbd>T</kbd> logistics &middot; <kbd>F</kbd> fleet &middot; <kbd>R</kbd> research &middot; <kbd>G</kbd> goals &middot; <kbd>H</kbd> help &middot; <kbd>Esc</kbd> close &middot; <kbd>Enter</kbd> confirm dialog</p>
+  <div class="foot"><button class="primary" data-act="close">Got it</button></div>`,true);
+}
+function showWin(){
+  const yrs=(S.turn/12).toFixed(1);const stars=S.turn<=108?3:S.turn<=144?2:1;
+  openModal(`<h2 class="gold">&#9733; INDEPENDENCE DAY &#9733;</h2>
+  <p style="font-size:15px">Mars no longer needs Earth. ${S.stock.mars.colonists} colonists, a shipyard in orbit and factories that build themselves. It took <b>${yrs} years</b> (${dateStr(S.turn)}).</p>
+  <p style="font-size:28px;color:var(--gold);margin:6px 0">${'&#9733;'.repeat(stars)}<span class="faint">${'&#9733;'.repeat(3-stars)}</span></p>
+  <div class="dl"><dt>Interplanetary launches</dt><dd>${S.stats.launches}</dd><dt>Off-window launches (&gt;1.5x)</dt><dd>${S.stats.offWindow}</dd>
+  <dt>Interplanetary fuel burned</dt><dd>${fmt(S.stats.interFuel)} t</dd><dt>Fuel wasted on poor timing</dt><dd>${fmt(S.stats.extraFuel)} t</dd>
+  <dt>Cargo delivered to Mars orbit</dt><dd>${fmt(S.stats.toMars)} t</dd><dt>Freighters built</dt><dd>${S.stats.shipsBuilt}</dd><dt>Colonists lost</dt><dd>${S.stats.lost}</dd>
+  <dt>Milestones</dt><dd>${MILESTONES.filter(m=>S.ms[m.id]).length} / ${MILESTONES.length}</dd></div>
+  <p class="dim">3 stars: within 9 years. 2 stars: within 12 years.</p>
+  <div class="foot"><button data-act="close">Keep looking</button><button class="primary" data-act="newgame">New Game</button></div>`);
+}
+function showIntro(){
+  openModal(`<h2>Mission Briefing</h2>
+  <p>The year is ${START_YEAR}. You run the logistics of humanity's expansion to Mars.</p>
+  <p><b>Robots go first.</b> Land them with parts and fuel, let them build power, mines and propellant plants. <b>Humans follow</b> once habitats stand. You win when Mars can feed, fuel, repair and even rebuild itself.</p>
+  <p class="note w"><b>The hard part:</b> ships can only fly cheaply to Mars about once every 26 months, when the planets line up. Each window is precious: plan cargo, fuel and timing well in advance.</p>
+  <p>The first Earth &rarr; Mars window opens in about 6 months. Follow the <b>Mission Brief</b> at the bottom left.</p>
+  <div class="foot"><button data-act="help">How to Play</button><button class="primary" data-act="close">Begin <kbd>Enter</kbd></button></div>`);
+}
+
+/* ================== MAP ================== */
+const cv=$('#map'),cx=cv.getContext('2d');let dispT=0,W=0,H=0;
+const STARS=Array.from({length:220},()=>({x:Math.random(),y:Math.random(),r:Math.random()*1.2+0.2,a:Math.random()*0.6+0.2}));
+function resize(){const r=cv.getBoundingClientRect();const d=window.devicePixelRatio||1;W=r.width;H=r.height;cv.width=W*d;cv.height=H*d;cx.setTransform(d,0,0,d,0,0);}
+window.addEventListener('resize',resize);
+function P(theta,r,o){const a=theta*Math.PI/180;return [o.x+r*o.s*Math.cos(a),o.y-r*o.s*Math.sin(a)];}
+function dot(x,y,r,c){cx.beginPath();cx.arc(x,y,r,0,7);cx.fillStyle=c;cx.fill();}
+function txt(s,x,y,c,al,f){cx.fillStyle=c;cx.textAlign=al||'left';cx.font=f||'12px Segoe UI, sans-serif';cx.fillText(s,x,y);}
+function draw(){
+  requestAnimationFrame(draw);
+  if(!S||!W)return;
+  const speed=skipping?0.14:0.06;
+  if(Math.abs(dispT-S.turn)<speed)dispT=S.turn;else dispT+=Math.sign(S.turn-dispT)*speed*Math.max(1,Math.abs(S.turn-dispT)/2);
+  const t=dispT;
+  cx.clearRect(0,0,W,H);
+  for(const s of STARS){cx.globalAlpha=s.a;dot(s.x*W,s.y*H,s.r,'#fff');}cx.globalAlpha=1;
+  const o={x:W*0.47,y:H*0.53,s:Math.min(W*0.8,H*0.86)/2/R_M};
+  // orbits
+  cx.lineWidth=1;cx.strokeStyle='#22406a';cx.beginPath();cx.arc(o.x,o.y,R_E*o.s,0,7);cx.stroke();
+  cx.strokeStyle='#5a2b20';cx.beginPath();cx.arc(o.x,o.y,R_M*o.s,0,7);cx.stroke();
+  // sun
+  const g=cx.createRadialGradient(o.x,o.y,0,o.x,o.y,26);g.addColorStop(0,'#fff6d0');g.addColorStop(0.4,'#ffc340');g.addColorStop(1,'rgba(255,150,40,0)');cx.fillStyle=g;cx.beginPath();cx.arc(o.x,o.y,26,0,7);cx.fill();
+  const tE=thE(t),tM=thM(t);
+  const [ex,ey]=P(tE,R_E,o),[mx,my]=P(tM,R_M,o);
+  // Hohmann preview from Earth
+  const a=(R_E+R_M)/2,e=(R_M-R_E)/(R_M+R_E);
+  cx.setLineDash([2,4]);cx.strokeStyle='rgba(120,200,255,.45)';cx.beginPath();
+  for(let i=0;i<=60;i++){const nu=Math.PI*i/60;const r=a*(1-e*e)/(1+e*Math.cos(nu));const [x,y]=P(tE+nu*180/Math.PI,r,o);i?cx.lineTo(x,y):cx.moveTo(x,y);}cx.stroke();cx.setLineDash([]);
+  const [ax,ay]=P(tE+180,R_M,o);
+  dot(ax,ay,3,'rgba(120,200,255,.8)');txt('arrival point',ax+6,ay-6,'rgba(120,200,255,.8)');
+  // Mars position at arrival if launched now
+  const [mfx,mfy]=P(thM(t+8.5),R_M,o);cx.strokeStyle='#e0603a';cx.lineWidth=1.5;cx.beginPath();cx.arc(mfx,mfy,6,0,7);cx.stroke();
+  txt('Mars on arrival day',mfx+9,mfy+14,'#c2705a');
+  // ideal Mars ghost
+  const idl=idealPhase('out','hohmann');const [gx,gy]=P(tE+idl,R_M,o);
+  cx.setLineDash([4,3]);cx.strokeStyle='#46d38a';cx.lineWidth=1.5;cx.beginPath();cx.arc(gx,gy,9,0,7);cx.stroke();cx.setLineDash([]);
+  txt('Mars should be here to launch',gx+12,gy-8,'#46d38a');
+  // return ghost if ships at Mars
+  if(S.ships.some(s=>s.status==='mo')){const ri=idealPhase('back','hohmann');const [rx,ry]=P(tM-ri,R_E,o);cx.setLineDash([4,3]);cx.strokeStyle='#5fd7e8';cx.beginPath();cx.arc(rx,ry,7,0,7);cx.stroke();cx.setLineDash([]);txt('Earth here = return window',rx+10,ry+4,'#5fd7e8');}
+  // phase arc
+  const ph=norm360(tM-tE);const rr=R_E*o.s*0.55;
+  cx.strokeStyle='rgba(255,192,77,.8)';cx.lineWidth=2;cx.beginPath();
+  const a0=-tE*Math.PI/180,a1=-(tE+ph)*Math.PI/180;cx.arc(o.x,o.y,rr,a0,a1,true);cx.stroke();
+  cx.strokeStyle='rgba(255,255,255,.12)';cx.lineWidth=1;cx.beginPath();cx.moveTo(o.x,o.y);cx.lineTo(ex,ey);cx.moveTo(o.x,o.y);cx.lineTo(mx,my);cx.stroke();
+  const [px,py]=P(tE+ph/2,R_E*0.55+0.12,o);txt(Math.round(ph)+'°',px,py+4,'#ffc04d','center','bold 14px Segoe UI, sans-serif');
+  // planets
+  dot(ex,ey,8,'#4aa3ff');txt('Earth',ex,ey-14,'#9cc9ff','center','bold 12px Segoe UI, sans-serif');
+  const ma=t*2*Math.PI*1.08;dot(ex+15*Math.cos(ma),ey-15*Math.sin(ma),2.5,'#c3c8d2');
+  dot(mx,my,7,'#e0603a');txt('Mars',mx,my-13,'#ff9a7a','center','bold 12px Segoe UI, sans-serif');
+  if(S.ships.some(s=>s.status==='mo')||cnt('mo','station')){cx.strokeStyle='rgba(255,154,122,.5)';cx.beginPath();cx.arc(mx,my,12,0,7);cx.stroke();}
+  // ships
+  for(const s of S.ships){
+    if(s.status!=='transit')continue;
+    const fr=Math.max(0,Math.min(1,(t-s.launch)/(s.arrive-s.launch)));
+    const sweep=norm360(s.th1-s.th0)||360;
+    // path
+    cx.strokeStyle=s.from==='leo'?'rgba(255,122,69,.35)':'rgba(95,215,232,.35)';cx.lineWidth=1;cx.beginPath();
+    for(let i=0;i<=40;i++){const f=i/40;const r=s.r0+(s.r1-s.r0)*(1-Math.cos(f*Math.PI))/2;const [x,y]=P(s.th0+sweep*f,r,o);i?cx.lineTo(x,y):cx.moveTo(x,y);}cx.stroke();
+    const r=s.r0+(s.r1-s.r0)*(1-Math.cos(fr*Math.PI))/2;const [sx,sy]=P(s.th0+sweep*fr,r,o);
+    const ci=curPhaseIdx(s,Math.round(t));const pn=shipPhases(s)[ci].name;
+    const burning=ci===0||ci===2||ci===5;
+    if(burning){cx.globalAlpha=0.5+0.5*Math.sin(performance.now()/120);dot(sx,sy,9,'rgba(255,200,80,.5)');cx.globalAlpha=1;}
+    cx.save();cx.translate(sx,sy);cx.rotate(-(s.th0+sweep*fr+90)*Math.PI/180);cx.fillStyle=s.from==='leo'?'#ff7a45':'#5fd7e8';cx.beginPath();cx.moveTo(0,-6);cx.lineTo(4,5);cx.lineTo(-4,5);cx.closePath();cx.fill();cx.restore();
+    txt(s.name+' · '+pn,sx+8,sy-6,'#dbe3f1','left','11px Segoe UI, sans-serif');
+  }
+  // legend
+  txt(dateStr(Math.round(t)),14,24,'#dbe3f1','left','bold 16px Segoe UI, sans-serif');
+  txt('Phase angle (Mars ahead of Earth): '+Math.round(ph)+'°   target 44°   (shrinks ~14° per month)',14,44,'#ffc04d');
+  txt('Synodic period ~26 months: the planets realign only that often.',14,62,'#8a97b0');
+}
+
+/* ================== INPUT ================== */
+let skipping=false,busy=false;
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+async function doEnd(){if(busy||!S||S.won)return;busy=true;endTurn();render();await sleep(160);busy=false;}
+async function doSkip(){
+  if(busy||!S||S.won)return;busy=true;skipping=true;$('#bSkip').textContent='Skipping...';
+  for(let i=0;i<36;i++){endTurn();render();await sleep(170);if(S._stop||S.won||modalOpen())break;}
+  skipping=false;busy=false;$('#bSkip').innerHTML='Skip to next event <kbd>N</kbd>';
+}
+$('#bEnd').onclick=doEnd;$('#bSkip').onclick=doSkip;$('#bHelp').onclick=showHelp;
+$('#tabs').onclick=e=>{const b=e.target.closest('[data-tab]');if(b){S.tab=b.dataset.tab;renderTab();}};
+$('#nodes').onclick=e=>{const n=e.target.closest('[data-sel]');if(n){S.sel=n.dataset.sel;S.tab='loc';renderNodes();renderTab();}};
+function act(el){
+  const a=el.dataset.act;let err=null;
+  if(a==='close')closeModal();
+  else if(a==='help')showHelp();
+  else if(a==='newgame'){closeModal();startNew();}
+  else if(a==='hints'){S.hints=!S.hints;renderTut();}
+  else if(a==='buy')openBuy();
+  else if(a==='transfer')openTransfer(el.dataset.from);
+  else if(a==='launch')openLaunch(+el.dataset.id);
+  else if(a==='scrap'){if(confirm('Scrap this freighter for 80 t of parts? This cannot be undone.')){scrap(+el.dataset.id);render();}}
+  else if(a==='build'){err=build(el.dataset.loc,el.dataset.type);render();}
+  else if(a==='commission'){err=commission(el.dataset.loc);render();}
+  else if(a==='tech'){err=research(el.dataset.id);render();}
+  else if(a==='delroute'){S.routes.splice(+el.dataset.i,1);render();}
+  if(err)toast(err,'bad');
+}
+document.addEventListener('click',e=>{const el=e.target.closest('[data-act]');if(el)act(el);});
+$('#modalWrap').addEventListener('mousedown',e=>{if(e.target.id==='modalWrap')closeModal();});
+document.addEventListener('keydown',e=>{
+  if($('#title').style.display!=='none'){if(e.key==='Enter')$('#bNew').click();return;}
+  if(modalOpen()){
+    if(e.key==='Escape'){closeModal();e.preventDefault();}
+    else if(e.key==='Enter'){const b=document.querySelector('#modal .foot .primary');if(b&&!b.disabled){e.preventDefault();b.click();}}
+    return;
+  }
+  if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;
+  const k=e.key.toLowerCase();
+  if(e.key===' '){e.preventDefault();doEnd();}
+  else if(k==='n')doSkip();
+  else if(k>='1'&&k<='6'){S.sel=LOCS[+k-1];S.tab='loc';renderNodes();renderTab();}
+  else if(k==='b')openBuy();
+  else if(k==='t'){S.tab='logi';renderTab();}
+  else if(k==='f'){S.tab='fleet';renderTab();}
+  else if(k==='r'){S.tab='tech';renderTab();}
+  else if(k==='g'){S.tab='goals';renderTab();}
+  else if(k==='h')showHelp();
+});
+function enterGame(){$('#title').style.display='none';resize();dispT=S.turn;lastTut=curTut();render();}
+function startNew(){S=newState();log('Program start. Two freighters, Ares and Hermes, wait in Low Earth Orbit.');log('Earth -> Mars window expected '+dateStr(nextWindow('out',0).t)+'.');save();enterGame();showIntro();}
+$('#bNew').onclick=()=>{if(load()&&!confirm('Start a new game? Your saved game will be overwritten.'))return;startNew();};
+$('#bCont').onclick=()=>{const s=load();if(!s)return;S=s;enterGame();};
+$('#bHow').onclick=()=>{S=S||newState();showHelp();};
+if(!load())$('#bCont').disabled=true;
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>
